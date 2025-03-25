@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Pokemon API using Spring Cloud Function
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: java11
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        SPRING_CLOUD_FUNCTION_DEFINITION: getPokemon,listPokemon
+        POKEAPI_BASE_URL: https://pokeapi.co/api/v2
+
+Resources:
+  PokemonFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: target/pokemon-api-1.0.0-aws.jar
+      Handler: org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest
+      Events:
+        GetPokemon:
+          Type: Api
+          Properties:
+            Path: /api/pokemon/{name}
+            Method: get
+        ListPokemon:
+          Type: Api
+          Properties:
+            Path: /api/pokemon
+            Method: get
+      Environment:
+        Variables:
+          SPRING_CLOUD_FUNCTION_DEFINITION: getPokemon,listPokemon
+          POKEAPI_BASE_URL: https://pokeapi.co/api/v2
+      Policies:
+        - AWSLambdaBasicExecutionRole
+
+Outputs:
+  PokemonApi:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/api/pokemon
+  PokemonFunction:
+    Description: Lambda Function ARN
+    Value: !GetAtt PokemonFunction.Arn 
