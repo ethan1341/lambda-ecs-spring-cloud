@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Pokemon API SAM Template
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: java11
+    Architectures:
+    - x86_64
+    Environment:
+      Variables:
+        SPRING_CLOUD_FUNCTION_DEFINITION: getPokemon,listPokemon
+        POKEAPI_BASE_URL: https://pokeapi.co/api/v2
+  Api:
+    Auth:
+      ApiKeyRequired: false
+    Cors:
+      AllowMethods: '''GET,POST,PUT,DELETE,OPTIONS'''
+      AllowHeaders: '''Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'''
+      AllowOrigin: '''*'''
+      MaxAge: '''300'''
+    GatewayResponses:
+      DEFAULT_4XX:
+        ResponseParameters:
+          Headers:
+            Access-Control-Allow-Origin: '''*'''
+      DEFAULT_5XX:
+        ResponseParameters:
+          Headers:
+            Access-Control-Allow-Origin: '''*'''
+Resources:
+  PokemonFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest
+      Runtime: java11
+      CodeUri: s3://pokemon-lambda-deployment-bucket/87ee355b37d4f122aeafc61b3a70c179
+      MemorySize: 512
+      Timeout: 30
+      Events:
+        GetPokemon:
+          Type: Api
+          Properties:
+            Path: /pokemon/{name}
+            Method: GET
+        ListPokemon:
+          Type: Api
+          Properties:
+            Path: /pokemon
+            Method: GET
+      Environment:
+        Variables:
+          SPRING_CLOUD_FUNCTION_DEFINITION: getPokemon,listPokemon
+          POKEAPI_BASE_URL: https://pokeapi.co/api/v2
+      Policies:
+      - AWSLambdaBasicExecutionRole
+    Metadata:
+      SamResourceId: PokemonFunction
+Outputs:
+  PokemonApi:
+    Description: API Gateway endpoint URL for Prod stage for Pokemon Function
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/pokemon
+  PokemonFunction:
+    Description: Pokemon Lambda Function ARN
+    Value:
+      Fn::GetAtt:
+      - PokemonFunction
+      - Arn

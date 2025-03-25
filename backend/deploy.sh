@@ -1,14 +1,22 @@
 #!/bin/bash
 
-# Build the application
-echo "Building the application..."
+# Build the project
 mvn clean package -DskipTests
 
-# Check if build was successful
-if [ $? -ne 0 ]; then
-    echo "Build failed!"
-    exit 1
-fi
+# Create Lambda function if it doesn't exist
+aws lambda create-function \
+  --function-name pokemon-api \
+  --handler com.pokemon.handler.PokemonHandler \
+  --runtime java11 \
+  --role arn:aws:iam::YOUR_ACCOUNT_ID:role/lambda-role \
+  --code S3Bucket=YOUR_BUCKET,S3Key=pokemon-api-1.0-SNAPSHOT.jar \
+  --memory-size 512 \
+  --timeout 30 \
+  --environment Variables={SPRING_PROFILES_ACTIVE=prod} \
+  || aws lambda update-function-code \
+     --function-name pokemon-api \
+     --s3-bucket YOUR_BUCKET \
+     --s3-key pokemon-api-1.0-SNAPSHOT.jar
 
 # Deploy using SAM
 echo "Deploying to AWS..."

@@ -1,0 +1,45 @@
+{
+    "family": "pokemon-frontend",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "256",
+    "memory": "512",
+    "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole",
+    "taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskRole",
+    "containerDefinitions": [
+        {
+            "name": "pokemon-frontend",
+            "image": "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/pokemon-frontend:latest",
+            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "protocol": "tcp",
+                    "hostPort": 80
+                }
+            ],
+            "environment": [
+                {
+                    "name": "BACKEND_URL",
+                    "value": "http://YOUR_ALB_DNS:8080"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/pokemon-frontend",
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "ecs",
+                    "awslogs-create-group": "true"
+                }
+            },
+            "healthCheck": {
+                "command": ["CMD-SHELL", "curl -f http://localhost:80/ || exit 1"],
+                "interval": 30,
+                "timeout": 5,
+                "retries": 3,
+                "startPeriod": 60
+            }
+        }
+    ]
+} 

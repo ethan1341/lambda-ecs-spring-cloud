@@ -1,0 +1,40 @@
+{
+  "pokemon": [
+    {
+      "id": 1,
+      "name": "bulbasaur",
+      "height": 7,
+      "weight": 69,
+      "types": [
+        {
+          "type": {
+            "name": "grass"
+          }
+        },
+        {
+          "type": {
+            "name": "poison"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "ivysaur",
+      "height": 10,
+      "weight": 130,
+      "types": [
+        {
+          "type": {
+            "name": "grass"
+          }
+        },
+        {
+          "type": {
+            "name": "poison"
+          }
+        }
+      ]
+    }
+  ]
+} 

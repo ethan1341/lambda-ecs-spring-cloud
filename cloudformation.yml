@@ -1,0 +1,109 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Pokemon API - Infrastructure Template'
+
+Resources:
+  # IAM Role for Lambda
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # Lambda Function
+  PokemonFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: pokemon-service
+      Handler: org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: pokemon-lambda-deployment-bucket
+        S3Key: pokemon-api-1.0-SNAPSHOT.jar
+      Runtime: java11
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          SPRING_CLOUD_FUNCTION_DEFINITION: getPokemon,listPokemon
+          FUNCTION_NAME: getPokemon
+          MAIN_CLASS: com.pokemon.PokemonApplication
+
+  # API Gateway
+  PokemonApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: PokemonAPI
+      Description: API for Pokemon service
+
+  # API Gateway Resource for /pokemon
+  PokemonResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref PokemonApi
+      ParentId: !GetAtt PokemonApi.RootResourceId
+      PathPart: pokemon
+
+  # API Gateway Resource for /pokemon/{name}
+  PokemonNameResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref PokemonApi
+      ParentId: !Ref PokemonResource
+      PathPart: '{name}'
+
+  # GET Method for /pokemon
+  ListPokemonMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref PokemonApi
+      ResourceId: !Ref PokemonResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PokemonFunction.Arn}/invocations
+
+  # GET Method for /pokemon/{name}
+  GetPokemonMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref PokemonApi
+      ResourceId: !Ref PokemonNameResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PokemonFunction.Arn}/invocations
+
+  # Lambda Permission for API Gateway
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref PokemonFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PokemonApi}/*
+
+  # API Deployment
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - ListPokemonMethod
+      - GetPokemonMethod
+    Properties:
+      RestApiId: !Ref PokemonApi
+      StageName: prod
+
+Outputs:
+  ApiEndpoint:
+    Description: "API Endpoint URL"
+    Value: !Sub https://${PokemonApi}.execute-api.${AWS::Region}.amazonaws.com/prod/pokemon 

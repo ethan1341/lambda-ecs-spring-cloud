@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: pokemon-service
+  cloud:
+    function:
+      definition: getPokemon,listPokemon
+    aws:
+      credentials:
+        instance-profile: true
+      region:
+        static: us-east-2
+
+server:
+  port: 8080
+
+pokemon:
+  api:
+    url: https://pokeapi.co/api/v2
+
+# Set handler method mapping for API Gateway
+lambda:
+  handler:
+    getPokemon: /pokemon/{name}
+    listPokemon: /pokemon 

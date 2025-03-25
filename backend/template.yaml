@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Pokemon API using Spring Cloud Function
+Description: Pokemon API SAM Template
 
 Globals:
   Function:
@@ -11,37 +11,41 @@ Globals:
       - x86_64
     Environment:
       Variables:
-        SPRING_CLOUD_FUNCTION_DEFINITION: getPokemon,listPokemon
-        POKEAPI_BASE_URL: https://pokeapi.co/api/v2
+        SPRING_CLOUD_FUNCTION_DEFINITION: listPokemon,getPokemon
+  Api:
+    Cors:
+      AllowMethods: "'GET,OPTIONS'"
+      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      AllowOrigin: "'*'"
 
 Resources:
   PokemonFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: target/pokemon-api-1.0.0-aws.jar
-      Handler: org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest
+      Handler: com.pokemon.handler.PokemonHandler
+      Runtime: java11
+      CodeUri: target/pokemon-api-1.0-SNAPSHOT.jar
+      MemorySize: 512
+      Timeout: 30
       Events:
         GetPokemon:
           Type: Api
           Properties:
-            Path: /api/pokemon/{name}
-            Method: get
+            Path: /pokemon/{name}
+            Method: GET
         ListPokemon:
           Type: Api
           Properties:
-            Path: /api/pokemon
-            Method: get
+            Path: /pokemon
+            Method: GET
       Environment:
         Variables:
-          SPRING_CLOUD_FUNCTION_DEFINITION: getPokemon,listPokemon
-          POKEAPI_BASE_URL: https://pokeapi.co/api/v2
-      Policies:
-        - AWSLambdaBasicExecutionRole
+          SPRING_CLOUD_FUNCTION_DEFINITION: listPokemon,getPokemon
 
 Outputs:
   PokemonApi:
-    Description: API Gateway endpoint URL
-    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/api/pokemon
+    Description: API Gateway endpoint URL for Prod stage
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
   PokemonFunction:
-    Description: Lambda Function ARN
+    Description: Pokemon Lambda Function ARN
     Value: !GetAtt PokemonFunction.Arn 

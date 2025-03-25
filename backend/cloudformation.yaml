@@ -1,0 +1,176 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Pokemon API using AWS Lambda and API Gateway'
+
+Resources:
+  # IAM Role for Lambda
+  PokemonLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+
+  # Lambda Function
+  PokemonFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Role: !GetAtt PokemonLambdaRole.Arn
+      Runtime: java11
+      Handler: com.pokemon.handler.PokemonHandler
+      Code:
+        S3Bucket: pokemon-lambda-deployment-bucket
+        S3Key: pokemon-api-1.0-SNAPSHOT.jar
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          SPRING_CLOUD_FUNCTION_DEFINITION: listPokemon,getPokemon
+
+  # REST API
+  PokemonApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: PokemonAPI
+      Description: API for Pokemon service
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # API Resource /pokemon
+  PokemonResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref PokemonApi
+      ParentId: !GetAtt PokemonApi.RootResourceId
+      PathPart: pokemon
+
+  # API Resource /pokemon/{name}
+  PokemonNameResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref PokemonApi
+      ParentId: !Ref PokemonResource
+      PathPart: '{name}'
+
+  # Method for GET /pokemon
+  GetPokemonListMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref PokemonApi
+      ResourceId: !Ref PokemonResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PokemonFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseModels:
+            application/json: Empty
+      ApiKeyRequired: false
+
+  # Method for GET /pokemon/{name}
+  GetPokemonByNameMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref PokemonApi
+      ResourceId: !Ref PokemonNameResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PokemonFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: '200'
+          ResponseModels:
+            application/json: Empty
+      ApiKeyRequired: false
+
+  # CORS for /pokemon
+  PokemonResourceOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      ResourceId: !Ref PokemonResource
+      RestApiId: !Ref PokemonApi
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # CORS for /pokemon/{name}
+  PokemonNameResourceOptions:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      ResourceId: !Ref PokemonNameResource
+      RestApiId: !Ref PokemonApi
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # Lambda Permission for API Gateway
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref PokemonFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PokemonApi}/*/*/*
+
+  # API Deployment
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - GetPokemonListMethod
+      - GetPokemonByNameMethod
+      - PokemonResourceOptions
+      - PokemonNameResourceOptions
+    Properties:
+      RestApiId: !Ref PokemonApi
+      StageName: Prod
+
+Outputs:
+  PokemonApiUrl:
+    Description: URL of the Pokemon API
+    Value: !Sub https://${PokemonApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/pokemon
+  PokemonFunctionArn:
+    Description: ARN of the Pokemon Lambda function
+    Value: !GetAtt PokemonFunction.Arn 

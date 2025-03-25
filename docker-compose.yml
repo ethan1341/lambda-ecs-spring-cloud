@@ -1,20 +1,29 @@
-version: '3.8'
+version: '3'
 
 services:
+  pokemon-api:
+    build:
+      context: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+    container_name: pokemon-backend
+    networks:
+      - pokemon-network
+
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: pokemon-frontend
     ports:
-      - "3000:80"
+      - "80:80"
     depends_on:
-      - backend
+      - pokemon-api
+    networks:
+      - pokemon-network
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker 
+networks:
+  pokemon-network:
+    driver: bridge 

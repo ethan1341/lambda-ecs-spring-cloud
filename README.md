@@ -94,6 +94,21 @@ The application uses the following endpoints:
 - Backend: `http://localhost:8080`
 - PokéAPI: `https://pokeapi.co/api/v2`
 
+
+## Docker
+1. Build and Run using Docker Compose
+docker-compose up --build
+The frontend container uses Nginx to run thats why its  80:80
+
+Docker-compose.yml Essential sets up the services like where to serve the backend from and the ports same with frontend
+
+Docker-compose.yml also runs Dockerfile
+dockerfile: Dockerfile
+
+Build the frontend and backend image it tag it then push it to the ecr 
+
+Using AWS Fargate (serverless)
+
 ## License
 
 MIT 

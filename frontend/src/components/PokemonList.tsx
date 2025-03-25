@@ -11,7 +11,7 @@ import {
   Center,
 } from '@chakra-ui/react';
 import PokemonCard from './PokemonCard';
-import { pokemonApi, type Pokemon, type PokemonListResponse } from '../services/api';
+import { pokemonApi, type Pokemon } from '../services/api';
 
 const PokemonList = () => {
   const [pokemonList, setPokemonList] = useState<Pokemon[]>([]);

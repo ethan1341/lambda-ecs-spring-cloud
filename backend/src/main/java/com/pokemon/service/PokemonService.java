@@ -1,17 +1,51 @@
 package com.pokemon.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pokemon.model.Pokemon;
 import com.pokemon.model.PokemonListResponse;
-import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Service;
 
-@FeignClient(name = "pokemon-api", url = "${pokemon.api.url}")
-public interface PokemonService {
-    @GetMapping("/pokemon/{name}")
-    String getPokemonByName(@PathVariable("name") String name);
+import javax.annotation.PostConstruct;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
-    @GetMapping("/pokemon")
-    String listPokemon(@RequestParam("limit") int limit, @RequestParam("offset") int offset);
+@Service
+public class PokemonService {
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private List<Pokemon> pokemonList = new ArrayList<>();
+
+    @PostConstruct
+    public void init() {
+        try {
+            ClassPathResource resource = new ClassPathResource("pokemon-data.json");
+            Map<String, List<Pokemon>> data = objectMapper.readValue(resource.getInputStream(), Map.class);
+            this.pokemonList = data.get("pokemon");
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load Pokemon data", e);
+        }
+    }
+
+    public Pokemon getPokemonByName(String name) {
+        return pokemonList.stream()
+                .filter(p -> p.getName().equalsIgnoreCase(name))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Pokemon not found: " + name));
+    }
+
+    public PokemonListResponse listPokemon(int limit, int offset) {
+        PokemonListResponse response = new PokemonListResponse();
+        response.setCount(pokemonList.size());
+        response.setResults(pokemonList.stream()
+                .skip(offset)
+                .limit(limit)
+                .collect(Collectors.toList()));
+        return response;
+    }
 } 
